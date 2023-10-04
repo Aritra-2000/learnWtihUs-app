@@ -45,7 +45,7 @@ export const paymentVerification = catchAsyncError(async (req, res, next) => {
         process.env.RAZORPAY_API_SECRET
     ).update(razorpay_payment_id + "" + subscription_id, "utf-8").digest("hex");
 
-    isAuthentic = generated_signature === razorpay_signature;
+    const isAuthentic = generated_signature === razorpay_signature;
 
     if (!isAuthentic)
         return res.redirect(`${process.env.FRONTEND_URL}/paymentfailed`);
