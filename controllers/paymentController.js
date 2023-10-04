@@ -33,36 +33,32 @@ export const buySubscription = catchAsyncError(async (req, res, next) => {
 
 
 export const paymentVerification = catchAsyncError(async (req, res, next) => {
+  const { razorpay_signature, razorpay_payment_id, razorpay_subscription_id } = req.body;
+    
+  const user = await User.findById(req.user._id);
 
-    const { razorpay_signature, razorpay_payment_id, razorpay_subscription_id } = req.body;
+  const subscription_id = user.subscription.id;
 
-    const user = await User.findById(req.user._id);
+  const generated_signature = crypto.createHmac("sha256", process.env.RAZORPAY_API_SECRET).update(razorpay_payment_id + "|" + subscription_id, "utf-8").digest("hex");
 
-    const subscription_id = user.subscription.id;
+  const isAuthentic = generated_signature === razorpay_signature;
 
-    const generated_signature = crypto.createHmac(
-        "sha256",
-        process.env.RAZORPAY_API_SECRET
-    ).update(razorpay_payment_id + "" + subscription_id, "utf-8").digest("hex");
+  if (!isAuthentic)
+    return res.redirect(`${process.env.FRONTEND_URL}/paymentfail`);
 
-    const isAuthentic = generated_signature === razorpay_signature;
+  await Payment.create({
+    razorpay_signature,
+    razorpay_payment_id,
+    razorpay_subscription_id,
+  });
 
-    if (!isAuthentic)
-        return res.redirect(`${process.env.FRONTEND_URL}/paymentfailed`);
+  user.subscription.status = "active";
 
-    await Payment.create({
-        razorpay_signature,
-        razorpay_payment_id,
-        razorpay_subscription_id,
-    });
+  await user.save();
 
-    user.subscription.status = "active";
-
-    await user.save();
-
-    res.redirect(
-        `${process.env.FRONTEND_URL}/paymentsuccess?reference=${razorpay_payment_id}`
-    );
+  res.redirect(
+    `${process.env.FRONTEND_URL}/paymentsuccess?reference=${razorpay_payment_id}`
+  );
 });
 
 
